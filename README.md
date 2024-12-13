@@ -11,3 +11,5 @@ Add file on git
 2) git commint -m "message"
 3) git push origin your-branch
 
+
+Git tutorial: https://www.youtube.com/watch?v=RGOj5yH7evk&t=3558s
