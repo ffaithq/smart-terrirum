@@ -1,6 +1,21 @@
+/* 
+  Arduino project for ESP32
+  Project: Smart Terrarium
+  Subject: Master Project 2
+  Author: Vojtech Micek, Stepan Fatov, Roman Mikulin, Jakub Madzia
+*/
+
 #include <WiFi.h>
-#include <PubSubClient.h>
-#include <ArduinoJson.h>
+#include <PubSubClient.h> // Library on GitHub 
+#include <ArduinoJson.h> // Library From Arduino manager
+
+/* TODO tasks 
+  -Build function to unbundle data from MQTT
+  -Documentation
+  -Function to show error on LCD display or by LED
+*/
+
+
 
 // DEFINE PART
 // TODO: Add error code - can be separated in other file
@@ -35,14 +50,34 @@ void blink_led(unsigned int times, unsigned int duration) {
 }
 
 
+// TODO: Add error if device number is -1. Trying send data before connection was establish
 int bundleJsonIntoBuffer(
     const String* valueNames, size_t valueNamesCount,
     const String*  values,     size_t valuesCount,
-    int deviceId,
     char* outBuffer, size_t bufferSize,
     int capacityJson)
 {
-  // 1) Compare array sizes
+/*
+  Function to budle data to JSON for sending via MQTT
+  Return integer code of error
+  Receives:
+     -Array of String which contains names (analogies: key of dictinaries in python)
+     -Length of array
+     -Array of String which contains values (analogies: values of dictionaries in python)
+     -Lenghh of array 
+     -Pointer to buffer of char and size of buffer
+     -Capacity of JSON file - number fo bytes ! JSON will also take space for meta-data
+     !!Order of names and values have to be the same
+     
+    ERROR CODE:
+    0 - OK
+    1 - Not enough values: There is more names than values. Number has to be the same
+    2 - Not enough names: There is more values than names. Number has to be the same
+    3 - Overflow of JSON file. Too small capacity of JSON
+    4 - Not everything is passed to buffer. Too small buffer
+*/
+
+  // IF number of names and number of values aren't the same return error
   if (valueNamesCount > valuesCount) {
     Serial.println("[ERROR] Not enough values!");
     return 1;
@@ -51,18 +86,16 @@ int bundleJsonIntoBuffer(
     Serial.println("[ERROR] Not enough names!");
     return 2;
   }
-
-  // 2) Create a StaticJsonDocument of 'capacityJson' bytes
-  StaticJsonDocument<200> json;  // Or: StaticJsonDocument<capacityJson> json;
-  // (Note: 'capacityJson' must be a compile-time constant in template form:
-  //  StaticJsonDocument<someInteger>.)
-
-  // 3) Insert "deviceId"
+  
+  // Allocate space for JSON
+  StaticJsonDocument<capacityJson> json;
+  
+  // Assign deviceID. Take global variable
   json["deviceId"] = deviceId;
 
-  // 4) Insert each (name -> value) pair
+  // Insert each (name -> value) pair
   for (size_t i = 0; i < valuesCount; i++) {
-    // Example: doc["temperature"] = 23.4
+    // Example: json["temperature"] = 23.4
     json[valueNames[i]] = values[i];
 
     // Check memory usage after adding each item
@@ -72,26 +105,44 @@ int bundleJsonIntoBuffer(
     }
   }
 
-  // 5) Serialize JSON into outBuffer (up to bufferSize)
+  //Serialize JSON into outBuffer (up to bufferSize)
   size_t bytesWritten = serializeJson(json, outBuffer, bufferSize);
   if (bytesWritten >= bufferSize) {
     Serial.println("[ERROR] JSON output truncated!");
     return 4;
   }
 
-  // 6) Success
   return 0;
 }
 
-
+// TODO: Add error if device number is -1. Trying send data before connection was establish
 int bundleJsonIntoBuffer(
     const String* valueNames, size_t valueNamesCount,
     const float*  values,     size_t valuesCount,
-    int deviceId,
     char* outBuffer, size_t bufferSize,
     int capacityJson)
 {
-  // 1) Compare array sizes
+  /*
+  Function to budle data to JSON for sending via MQTT
+  Return integer code of error
+  Receives:
+     -Array of String which contains names (analogies: key of dictinaries in python)
+     -Length of array
+     -Array of float which contains values (analogies: values of dictionaries in python)
+     -Lenghh of array 
+     -Pointer to buffer of char and size of buffer
+     -Capacity of JSON file - number fo bytes ! JSON will also take space for meta-data
+     !!Order of names and values have to be the same
+     
+    ERROR CODE:
+    0 - OK
+    1 - Not enough values: There is more names than values. Number has to be the same
+    2 - Not enough names: There is more values than names. Number has to be the same
+    3 - Overflow of JSON file. Too small capacity of JSON
+    4 - Not everything is passed to buffer. Too small buffer
+*/
+
+  // IF number of names and number of values aren't the same return error
   if (valueNamesCount > valuesCount) {
     Serial.println("[ERROR] Not enough values!");
     return 1;
@@ -102,16 +153,16 @@ int bundleJsonIntoBuffer(
   }
 
   // 2) Create a StaticJsonDocument of 'capacityJson' bytes
-  StaticJsonDocument<200> json;  // Or: StaticJsonDocument<capacityJson> json;
+  StaticJsonDocument<capacityJson> json;  // Or: StaticJsonDocument<capacityJson> json;
   // (Note: 'capacityJson' must be a compile-time constant in template form:
   //  StaticJsonDocument<someInteger>.)
 
-  // 3) Insert "deviceId"
+  // Assign deviceID. Take global variable
   json["deviceId"] = deviceId;
 
-  // 4) Insert each (name -> value) pair
+  // Insert each (name -> value) pair
   for (size_t i = 0; i < valuesCount; i++) {
-    // Example: doc["temperature"] = 23.4
+    // Example: json["temperature"] = 23.4
     json[valueNames[i]] = values[i];
 
     // Check memory usage after adding each item
@@ -121,7 +172,7 @@ int bundleJsonIntoBuffer(
     }
   }
 
-  // 5) Serialize JSON into outBuffer (up to bufferSize)
+  // Serialize JSON into outBuffer (up to bufferSize)
   size_t bytesWritten = serializeJson(json, outBuffer, bufferSize);
   if (bytesWritten >= bufferSize) {
     Serial.println("[ERROR] JSON output truncated!");
@@ -242,7 +293,6 @@ void connectMQTTserver() {
         int err = bundleJsonIntoBuffer(
             names, sizeof(names) / sizeof(names[0]),
             vals,  sizeof(vals) / sizeof(vals[0]),
-            deviceId,
             buffer, sizeof(buffer),
             200
         );
@@ -313,11 +363,14 @@ void loop() {
     String names[] = {"temperature"};
     float  vals[]  = {23.4};
 
-    // Call the function
+    // Call the function to bundel data
+    // TODO: move it (till mark !HERE!) to separate function DAQ 
+    // Function will get data from sensor -> procces -> bundle 
+    // Function arguments: pointer buffer, size of buffer
+    // Return error code (integer)
     int err = bundleJsonIntoBuffer(
         names, sizeof(names) / sizeof(names[0]),
         vals,  sizeof(vals) / sizeof(vals[0]),
-        deviceId,
         buffer, sizeof(buffer),
         200
     );
@@ -329,6 +382,8 @@ void loop() {
       Serial.print("Error code: ");
       Serial.println(err);
     }
+    // !HERE!
+
     client.publish(topic, buffer);
 
     // Print for debugging
