@@ -53,31 +53,21 @@ void blink_led(unsigned int times, unsigned int duration) {
 // TODO: Add error if device number is -1. Trying send data before connection was establish
 int bundleJsonIntoBuffer(
     const String* valueNames, size_t valueNamesCount,
-    const String*  values,     size_t valuesCount,
+    const String* values, size_t valuesCount,
     char* outBuffer, size_t bufferSize,
-    int capacityJson)
-{
-/*
-  Function to budle data to JSON for sending via MQTT
-  Return integer code of error
-  Receives:
-     -Array of String which contains names (analogies: key of dictinaries in python)
-     -Length of array
-     -Array of String which contains values (analogies: values of dictionaries in python)
-     -Lenghh of array 
-     -Pointer to buffer of char and size of buffer
-     -Capacity of JSON file - number fo bytes ! JSON will also take space for meta-data
-     !!Order of names and values have to be the same
-     
-    ERROR CODE:
+    int capacityJson // Pass deviceId explicitly
+) {
+  /*
+    Function to bundle data into JSON for sending via MQTT
+    Return Codes:
     0 - OK
-    1 - Not enough values: There is more names than values. Number has to be the same
-    2 - Not enough names: There is more values than names. Number has to be the same
-    3 - Overflow of JSON file. Too small capacity of JSON
-    4 - Not everything is passed to buffer. Too small buffer
-*/
+    1 - Not enough values (valueNamesCount > valuesCount)
+    2 - Not enough names (valueNamesCount < valuesCount)
+    3 - Overflow of JSON file (too small capacityJson)
+    4 - Output buffer too small (truncated JSON)
+  */
 
-  // IF number of names and number of values aren't the same return error
+  // Check if the number of names and values match
   if (valueNamesCount > valuesCount) {
     Serial.println("[ERROR] Not enough values!");
     return 1;
@@ -86,63 +76,53 @@ int bundleJsonIntoBuffer(
     Serial.println("[ERROR] Not enough names!");
     return 2;
   }
-  
+
   // Allocate space for JSON
-  StaticJsonDocument<capacityJson> json;
-  
-  // Assign deviceID. Take global variable
+  DynamicJsonDocument json(capacityJson); // Use DynamicJsonDocument for runtime capacity
+
+  // Add deviceId
   json["deviceId"] = deviceId;
 
-  // Insert each (name -> value) pair
-  for (size_t i = 0; i < valuesCount; i++) {
-    // Example: json["temperature"] = 23.4
+  // Add (name -> value) pairs
+  for (size_t i = 0; i < valueNamesCount; i++) {
     json[valueNames[i]] = values[i];
 
-    // Check memory usage after adding each item
+    // Check for memory overflow
     if (json.memoryUsage() > json.capacity()) {
       Serial.println("[ERROR] Not enough memory to add new items!");
       return 3;
     }
   }
 
-  //Serialize JSON into outBuffer (up to bufferSize)
+  // Serialize JSON into outBuffer
   size_t bytesWritten = serializeJson(json, outBuffer, bufferSize);
-  if (bytesWritten >= bufferSize) {
+  if (bytesWritten + 1 >= bufferSize) { // Ensure space for null terminator
     Serial.println("[ERROR] JSON output truncated!");
     return 4;
   }
 
-  return 0;
+  return 0; // Success
 }
 
 // TODO: Add error if device number is -1. Trying send data before connection was establish
+
 int bundleJsonIntoBuffer(
     const String* valueNames, size_t valueNamesCount,
     const float*  values,     size_t valuesCount,
     char* outBuffer, size_t bufferSize,
-    int capacityJson)
-{
+    const int capacityJson
+) {
   /*
-  Function to budle data to JSON for sending via MQTT
-  Return integer code of error
-  Receives:
-     -Array of String which contains names (analogies: key of dictinaries in python)
-     -Length of array
-     -Array of float which contains values (analogies: values of dictionaries in python)
-     -Lenghh of array 
-     -Pointer to buffer of char and size of buffer
-     -Capacity of JSON file - number fo bytes ! JSON will also take space for meta-data
-     !!Order of names and values have to be the same
-     
-    ERROR CODE:
+  Function to bundle data into JSON for sending via MQTT
+  Return Codes:
     0 - OK
-    1 - Not enough values: There is more names than values. Number has to be the same
-    2 - Not enough names: There is more values than names. Number has to be the same
-    3 - Overflow of JSON file. Too small capacity of JSON
-    4 - Not everything is passed to buffer. Too small buffer
-*/
+    1 - Not enough values (valueNamesCount > valuesCount)
+    2 - Not enough names (valueNamesCount < valuesCount)
+    3 - Overflow of JSON document (too small capacityJson)
+    4 - Output buffer too small (truncated JSON)
+  */
 
-  // IF number of names and number of values aren't the same return error
+  // Check if the number of names and values are mismatched
   if (valueNamesCount > valuesCount) {
     Serial.println("[ERROR] Not enough values!");
     return 1;
@@ -152,35 +132,25 @@ int bundleJsonIntoBuffer(
     return 2;
   }
 
-  // 2) Create a StaticJsonDocument of 'capacityJson' bytes
-  StaticJsonDocument<capacityJson> json;  // Or: StaticJsonDocument<capacityJson> json;
-  // (Note: 'capacityJson' must be a compile-time constant in template form:
-  //  StaticJsonDocument<someInteger>.)
+  // Create a DynamicJsonDocument with runtime-defined capacity
+  DynamicJsonDocument json(capacityJson);
 
-  // Assign deviceID. Take global variable
+  // Add deviceId to JSON
   json["deviceId"] = deviceId;
 
-  // Insert each (name -> value) pair
-  for (size_t i = 0; i < valuesCount; i++) {
-    // Example: json["temperature"] = 23.4
+  // Add name-value pairs to JSON
+  for (size_t i = 0; i < valueNamesCount; i++) {
     json[valueNames[i]] = values[i];
-
-    // Check memory usage after adding each item
-    if (json.memoryUsage() > json.capacity()) {
-      Serial.println("[ERROR] Not enough memory to add new items!");
-      return 3;
-    }
   }
 
-  // Serialize JSON into outBuffer (up to bufferSize)
+  // Serialize JSON into outBuffer
   size_t bytesWritten = serializeJson(json, outBuffer, bufferSize);
-  if (bytesWritten >= bufferSize) {
+  if (bytesWritten + 1 > bufferSize) { // Ensure null terminator fits
     Serial.println("[ERROR] JSON output truncated!");
     return 4;
   }
 
-  // 6) Success
-  return 0;
+  return 0; // Success
 }
 
 // Callback function for "rpi/list_ids"
