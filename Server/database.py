@@ -88,14 +88,54 @@ class Database:
         conn.close()
         return "[SUCCES] Data has been written into database"
 
+    def update_data(self,query,data = None):
+        conn = self.__get_connection()
+        cursor = conn.cursor()
+        try:
+            if data:
+                cursor.execute(query, data)
+            else:
+                cursor.execute(query)
+            
+            conn.commit()
 
+
+        except sqlite3.Error as e:
+            print("Error while accessing SQLite database:", e)
+
+        finally:
+            # Close the connection
+            conn.close()
+
+    def delete_data(self,query,data=None):
+        conn = self.__get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if data:
+                cursor.execute(query, data)
+            else:
+                cursor.execute(query)
+            
+            conn.commit()
+            row = cursor.rowcount
+
+
+        except sqlite3.Error as e:
+            print("Error while accessing SQLite database:", e)
+
+        finally:
+            # Close the connection
+            conn.close()
+            return row
+        
     def read_data(self,query,fetch='one',data=None):
         conn = self.__get_connection()
         cursor = conn.cursor()
         record = None
         try:
             if data:
-                cursor.execute(query, (data,))
+                cursor.execute(query, data)
             else:
                 cursor.execute(query)
             
@@ -110,6 +150,7 @@ class Database:
 
         finally:
             # Close the connection
+            cursor.close()
             conn.close()
             return record
         
