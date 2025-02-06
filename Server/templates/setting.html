@@ -1,0 +1,36 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="{{ url_for('static', filename='addSetpoints.js') }}" defer></script>
+    <title>Image and JSON Upload</title>
+</head>
+<body>
+
+    <h1>Upload Image with JSON Data</h1>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+        <!-- Image file input -->
+        <label for="imageFile">Select an image:</label>
+        <input type="file" id="imageFile" name="image" accept="image/*" required>
+        <br><br>
+
+        <!-- JSON data fields -->
+        <label for="name">Name:</label>
+        <input type="text" id="name" value="value1" required>
+        <br><br>
+
+        <label for="waterlevel">Water Level:</label>
+        <input type="text" id="waterlevel" value="value2" required>
+        <br><br>
+        <label for="uvlevel">UV level:</label>
+        <input type="text" id="uvlevel" value="value2" required>
+        <br><br>
+
+        <button type="button" onclick="sendImageAndData()">Upload</button>
+    </form>
+
+</body>
+</html>
