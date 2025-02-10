@@ -64,8 +64,9 @@ void loop() {
     lcd.setCursor(0, 0);
     lcd.print("device ID:");
     lcd.setCursor(0, 1);
-    int ID;
+    int ID = INIT_DEVICE_ID;
     status = mqtt.get_ID(&ID);
+    if (status != OK)
     lcd.print(ID);
     delay(1000);
     lcd.clear();

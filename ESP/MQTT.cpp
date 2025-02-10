@@ -106,7 +106,7 @@ int MQTT::setup_MQTT(){
       delay(2000);
     }
   }
-  return MQTT_CONNECTED;
+  return OK;
 }
 
 int MQTT::disconect_MQTT(){
@@ -265,7 +265,7 @@ int MQTT::send(char* topic2Send, const String* valuesName, int nameCount, const 
     if (err != OK){
         if (DEBUG){
           Serial.println("[MQTT SEND][ERROR] Error from bundleJson");
-          Serial.print("ERROR CODE: "); Serial.print(err);
+          Serial.print("ERROR CODE: "); Serial.println(err);
         }
         return err;
     }
