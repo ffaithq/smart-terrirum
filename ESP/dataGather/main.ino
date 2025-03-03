@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <SPI.h>
 #include "sensors.h"
+#include "Arduino.h"
 
 //dara arrays definitions
 
@@ -14,10 +15,12 @@ void setup() {
     Serial.begin(115200);
     
     bme680.begin();
+    ltr390.begin();
     catnip_1.begin();
     catnip_2.begin();
-    ltr390.begin();
-    mhz19b.begin();
+    //mhz19b.begin();
+    ssd1306.begin();
+
 }
 
 void loop() {
@@ -29,12 +32,14 @@ void loop() {
     
     humSoil = (humSoil1 + humSoil2) / 2.0;
     tempSoil = (tempSoil1 + tempSoil2) / 2.0;
+
+    ltr390.readUV(UV); //THIS NEEDS TO BE FIXED TO BE ASSINGED IN FUNCTION
     
-    ltr390.readUV(UV);
-    
-    mhz19b.readCO2(co2);
+    //mhz19b.readCO2(co2);
 
     printValues();
+
+    ssd1306.printMeasuredData(tempAir, humAir, tempSoil, humSoil, pressAir, UV, co2, gas);
 
     delay(5000);
 }

@@ -19,6 +19,9 @@ void LTR390::configureSensor()
 }
 
 
-float LTR390::readUV(float &UV) {
-    return ltr.newDataAvailable() ? ltr.readUVS() : 0.0;
+void LTR390::readUV(float &UV) {
+    if (ltr.newDataAvailable())
+    {
+      UV = ltr.readUVS() / UV_SENSITIVITY;
+    }
 }

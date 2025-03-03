@@ -7,6 +7,7 @@
 #define HUMIDITY_REFERENCE 40
 #define HUM_WEIGHT 0.25
 #define GAS_WEIGHT 0.75
+#define TEMPERATURE_OFFSET 1.7
 
 
 BME680::BME680() : gas_reference(250000) {}
@@ -22,16 +23,16 @@ void BME680::begin()
 }
 
 void BME680::readData(float &tempAir, float &humAir, float &pressAir, float &gas) {
-    bme.beginReading();
-    if (!bme.endReading()) {
+    if (!bme.performReading()) {
         Serial.println(F("Failed to complete reading :("));
         return;
     }
-    tempAir = bme.temperature;
+    tempAir = bme.temperature - TEMPERATURE_OFFSET;
     humAir = bme.humidity;
     pressAir = bme.pressure / 100.0; // Pa -> hPa
     gas = bme.readGas();
     calculateIAQ(humAir, gas);
+    
 }
 
 void BME680::calculateIAQ(float &humAir, float &gas)
@@ -43,17 +44,20 @@ void BME680::calculateIAQ(float &humAir, float &gas)
 
   gas_score = (0.75 / (GAS_UPPER_LIMIT - GAS_LOWER_LIMIT) * gas_reference - (2000 * 0.75 / (GAS_UPPER_LIMIT - GAS_LOWER_LIMIT))) * 100;
   gas = (100 - (hum_score + gas_score)) * 5;
-  if ((getgasreference_count++)%10==0) getGasReference(); 
+  if ((getgasreference_count++)%50==0) getGasReference(); 
 }
 
 void BME680::configureSensor()
 {
-    bme.setTemperatureOversampling(BME680_OS_16X);
-    bme.setHumidityOversampling(BME680_OS_16X);
-    bme.setPressureOversampling(BME680_OS_4X);
-    bme.setIIRFilterSize(BME680_FILTER_SIZE_127);
+    bme.setTemperatureOversampling(BME680_OS_2X);
+    bme.setHumidityOversampling(BME680_OS_2X);
+    bme.setPressureOversampling(BME680_OS_1X);
+    bme.setIIRFilterSize(BME680_FILTER_SIZE_0);
     bme.setGasHeater(320, 150);//default values 320 degrees for 150 ms
     getGasReference();
+
+    
+
 }
 
 void BME680::getGasReference() {
@@ -61,5 +65,6 @@ void BME680::getGasReference() {
     float totalGas = 0;
     for (int i = 0; i < 10; i++) 
         totalGas += bme.readGas();
+        delay(100);
     gas_reference = SATURATE(totalGas / 10.0, GAS_LOWER_LIMIT, GAS_UPPER_LIMIT);
 }
