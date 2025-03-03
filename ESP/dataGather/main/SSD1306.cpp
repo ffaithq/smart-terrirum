@@ -23,10 +23,19 @@ void SSD1306::printText(const char *text) {
   ssd1306.setTextSize(1);      // Set text size to normal
   ssd1306.setTextColor(SSD1306_WHITE); // White text
   ssd1306.setCursor(0, 0);     // Set the cursor position
-  ssd1306.print(text);         // Print the text
+  ssd1306.print(text);
   ssd1306.display();
 }
 
+void SSD1306::printCountdown(const char *text, uint8_t count){
+  ssd1306.clearDisplay();
+  ssd1306.setTextSize(1);      // Set text size to normal
+  ssd1306.setTextColor(SSD1306_WHITE); // White text
+  ssd1306.setCursor(0, 0);     // Set the cursor position
+  ssd1306.print(text); ssd1306.print("\n");
+  ssd1306.print("Aprrox time remaining\n"); ssd1306.print(count); ssd1306.print("s\n");
+  ssd1306.display();
+}
 void SSD1306::printMeasuredData(float &tempAir, float &humAir, float &tempSoil, float &humSoil, float &pressAir, float &UV, float &co2, float &gas){
   static uint8_t page = 0;
   ssd1306.clearDisplay();

@@ -27,6 +27,7 @@ class SSD1306{
 
     // Method to display text
     void printText(const char *text);
+    void printCountdown(const char *text, uint8_t count);
 
     void printMeasuredData(float &tempAir, float &humAir, float &tempSoil, float &humSoil, float &pressAir, float &UV, float &co2, float &gas);
 };

@@ -12,7 +12,8 @@ BME680 bme680;
 Catnip catnip_1(0x20);
 Catnip catnip_2(0x21);
 LTR390 ltr390;
-MHZ19B mhz19b(Serial2, 16, 17);
 SSD1306 ssd1306;
+MHZ19B mhz19b(Serial2, 16, 17, ssd1306);
+
 
 #endif // SENSORS_H
