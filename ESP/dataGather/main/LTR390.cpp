@@ -1,6 +1,6 @@
 #include "LTR390.h"
 #include <Arduino.h>
-
+#define UV_SENSITIVITY 2300
 LTR390::LTR390() {}
 
 void LTR390::begin() {
@@ -22,6 +22,8 @@ void LTR390::configureSensor()
 void LTR390::readUV(float &UV) {
     if (ltr.newDataAvailable())
     {
-      UV = ltr.readUVS() / UV_SENSITIVITY;
+      UV = ltr.readUVS();
+      UV = UV / UV_SENSITIVITY;
+       //UV = ltr.readUVS();
     }
 }

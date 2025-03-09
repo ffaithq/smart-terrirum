@@ -3,7 +3,6 @@
 
 #include "Adafruit_LTR390.h"
 
-#define UV_SENSITIVITY 2300
 
 class LTR390 {
 public:

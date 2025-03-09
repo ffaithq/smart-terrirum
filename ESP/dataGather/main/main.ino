@@ -19,7 +19,7 @@ void setup() {
     catnip_1.begin();
     catnip_2.begin();
     ssd1306.begin();
-    mhz19b.begin();
+   // mhz19b.begin();
     
     
 
@@ -37,13 +37,13 @@ void loop() {
 
     ltr390.readUV(UV); //THIS NEEDS TO BE FIXED TO BE ASSINGED IN FUNCTION
     
-    mhz19b.readCO2(co2);
+    //mhz19b.readCO2(co2);
 
     //printValues();
 
     ssd1306.printMeasuredData(tempAir, humAir, tempSoil, humSoil, pressAir, UV, co2, gas);
 
-    delay(5000);
+    delay(3000);
 }
 
 void printValues()
