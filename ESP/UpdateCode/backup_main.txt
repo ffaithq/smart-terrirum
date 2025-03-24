@@ -1,0 +1,220 @@
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include "Adafruit_BME680.h"
+#include "I2CSoilMoistureSensor.h"
+#include "Adafruit_LTR390.h"
+#include <ErriezMHZ19B.h>
+
+ 
+
+#define RXD2 16
+#define TXD2 17
+
+#define HUMIDITY_SOIL_LOW_C 246
+#define HUMIDITY_SOIL_HIGH_C 500
+#define HUMIDITY_SOIL_FILTER_SIZE 50
+
+#define mhzSerial           Serial2
+
+#define GAS_LOWER_LIMIT 2000   // Bad air quality limit
+#define GAS_UPPER_LIMIT 50000  // Good air quality limit 
+
+#define SATURATE(value, min_value, max_value) ((value) < (min_value) ? (min_value) : ((value) > (max_value) ? (max_value) : (value)))
+
+ 
+
+//dara arrays definitions
+
+const char* KEYS[] = {"tempAir", "humAir", "tempSoil", "humSoil", "UV", "pressAir", "co2", "IAQ"};
+float tempAir, humAir, tempSoil, humSoil, UV, pressAir, co2, gas;
+float* values[] = {&tempAir, &humAir, &tempSoil, &humSoil, &UV, &pressAir, &co2, &gas};
+
+ 
+
+//class INIT
+Adafruit_BME680 bme;//air moist/temp gas press
+Adafruit_LTR390 ltr; //UV
+I2CSoilMoistureSensor catnip_0;//soil moist/temp
+I2CSoilMoistureSensor catnip_1; 
+ErriezMHZ19B mhz19b(&mhzSerial);//co2
+
+//Adafruit_LTR390 ltr = Adafruit_LTR390(); //TO-DO look if this needs to be assinged
+
+ 
+
+int humSoil0, humSoil1, tempSoil0, tempSoil1;
+
+ 
+//https://github.com/G6EJD/BME680-Example
+float hum_weighting = 0.25; // so hum effect is 25% of the total air quality score
+float gas_weighting = 0.75; // so gas effect is 75% of the total air quality score
+
+float hum_score, gas_score;
+float gas_reference = 250000;
+float hum_reference = 40;
+int   getgasreference_count = 0;
+
+
+void setup() {
+
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+
+ 
+
+//check connection
+
+//TO-DO library should be made for this and include all sensors
+
+ 
+
+//BME
+  if (!bme.begin()) {
+        Serial.println(F("BME680 not found!"));
+        while (1);
+    }
+
+  // Set up oversampling and filter initialization
+  bme.setTemperatureOversampling(BME680_OS_16X); // To increase the resolution of the raw sensor data, it supports oversampling
+  bme.setHumidityOversampling(BME680_OS_16X);
+  bme.setPressureOversampling(BME680_OS_4X);
+  bme.setIIRFilterSize(BME680_FILTER_SIZE_127); // IIR filter to reduce short-term changes in sensor output values caused by external disturbances.
+  bme.setGasHeater(320, 150); // 320*C for 150 ms, default
+  GetGasReference();
+
+
+//LTR
+
+  if (!ltr.begin()) {
+        Serial.println("LTR390 not found!");
+        while (1);
+    }
+    ltr.setMode(LTR390_MODE_UVS);
+    ltr.setResolution(LTR390_RESOLUTION_20BIT);
+    ltr.setGain(LTR390_GAIN_3);
+
+
+
+//CATNIP
+
+  catnip_0.begin(0x20);
+  catnip_1.begin(0x21);
+
+ 
+
+//MHZ19B
+
+  //   mhzSerial.begin(9600);
+  //   mhz19b.setRange5000ppm();
+  //   mhz19b.setAutoCalibration(true);
+
+  //   while (!mhz19b.detect()) {
+  //       Serial.println(F("Detecting MH-Z19B sensor..."));
+  //       delay(2000);
+  //   }
+
+  //  while (mhz19b.isWarmingUp()) {  // Sensor requires 3 minutes warming-up after power-on
+  //       Serial.println(F("Warming up..."));
+  //       delay(2000);
+
+  //   };
+    //MANUAL CALIBRATION OF CO2 SENSOR
+    //mhz19b.startZeroCalibration();// be very carefull to not zero calibrate outside with atleast 30 minutes exposure before
+    //Serial.println("Calibrated");
+
+}
+
+ 
+
+void loop() {
+
+  unsigned long startTime = millis();
+  bme.beginReading();//works in paralel
+
+  if (!catnip_0.isBusy() && !catnip_1.isBusy()) {
+         int humSum0 = 0, humSum1 = 0;
+         float tempSum0 = 0, tempSum1 = 0;
+         for (int i = 0; i < HUMIDITY_SOIL_FILTER_SIZE; i++) { //FILTER
+             humSum0 += SATURATE(catnip_0.getCapacitance(), HUMIDITY_SOIL_LOW_C, HUMIDITY_SOIL_HIGH_C);
+             tempSum0 += catnip_0.getTemperature() / 10.0;
+             delay(100);
+             humSum1 += SATURATE(catnip_1.getCapacitance(), HUMIDITY_SOIL_LOW_C, HUMIDITY_SOIL_HIGH_C);
+             tempSum1 += catnip_1.getTemperature() / 10.0;
+            delay(100); 
+         }
+         Serial.println("HUMSUMS");
+         Serial.println(humSum0);
+         Serial.println(humSum1);
+         humSoil = (humSum0 + humSum1) / (2 * HUMIDITY_SOIL_FILTER_SIZE);
+          Serial.println("HUMSoil");
+         Serial.println(humSoil);
+         humSoil = ((humSoil - HUMIDITY_SOIL_LOW_C) / (HUMIDITY_SOIL_HIGH_C - HUMIDITY_SOIL_LOW_C)) * 100;
+         humSoil = SATURATE(humSoil, 0, 100); 
+         tempSoil = (tempSum0 + tempSum1) / (2.0 * HUMIDITY_SOIL_FILTER_SIZE);
+         catnip_0.sleep();
+         catnip_1.sleep();
+   }
+
+  if (ltr.newDataAvailable()) {
+        UV = ltr.readUVS();
+    }
+ 
+  if (!bme.endReading()) {
+    Serial.println(F("Failed to complete reading :("));
+  }
+ 
+  tempAir = bme.temperature;
+  humAir = bme.humidity;
+  pressAir = bme.pressure / 100.0;
+  gas = bme.readGas();
+  //https://github.com/G6EJD/BME680-Example GAS IAQ
+
+ float current_humidity = bme.readHumidity();
+    hum_score = (current_humidity >= 38 && current_humidity <= 42) ? 25.0 : 
+                (current_humidity < 38 ? (0.25 / hum_reference * current_humidity * 100) : 
+                 (-0.25 / (100 - hum_reference) * current_humidity + 0.416666) * 100);
+    gas_reference = SATURATE(gas_reference, GAS_LOWER_LIMIT, GAS_UPPER_LIMIT);
+    gas_score = (0.75 / (GAS_UPPER_LIMIT - GAS_LOWER_LIMIT) * gas_reference - (2000 * 0.75 / (GAS_UPPER_LIMIT - GAS_LOWER_LIMIT))) * 100;
+    gas = (100 - (hum_score + gas_score)) * 5;
+
+
+  if ((getgasreference_count++)%10==0) GetGasReference(); 
+  
+
+  // if (mhz19b.isReady()) {
+  //       int16_t result = mhz19b.readCO2();
+  //       co2 = (result < 0) ? -1 : result;
+  //   }
+
+
+  for(int i = 0; i <8; i++)
+  {
+    Serial.print(KEYS[i]);
+    Serial.print(": ");
+    Serial.print(String(*values[i]));
+    Serial.print("  \t");
+  }
+
+  Serial.println();
+
+  unsigned long endTime = millis();
+  unsigned long duration = endTime - startTime;
+  Serial.print("Function execution time: ");
+  Serial.print(duration);
+  Serial.println(" ms");
+
+  delay(5000);
+
+}
+
+
+void GetGasReference(){
+  // Now run the sensor for a burn-in period, then use combination of relative humidity and gas resistance to estimate indoor air quality as a percentage.
+  Serial.println("Getting a new gas reference value");
+  float totalGas = 0;
+    for (int i = 0; i < 10; i++) 
+      totalGas += bme.readGas();
+
+    gas_reference = totalGas / 10.0;
+}
